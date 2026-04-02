@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Finance Tracker API</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1219;
+    --border: #1a2433;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.12);
+    --accent-glow: rgba(0,229,160,0.35);
+    --text: #e2eaf4;
+    --muted: #4a6070;
+    --danger: #ff5263;
+    --warn: #ffb340;
+    --info: #4da6ff;
+    --method-get: #00e5a0;
+    --method-post: #4da6ff;
+    --method-patch: #ffb340;
+    --method-delete: #ff5263;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orb */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    right: -200px;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(0,229,160,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 64px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 64px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.6s ease both;
+  }
+  .badge::before { content: '◉'; font-size: 8px; }
+
+  h1 {
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .tagline {
+    margin-top: 20px;
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 400;
+    max-width: 560px;
+    line-height: 1.6;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 36px;
+    flex-wrap: wrap;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: #00ffc0; transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── STATS BAR ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 72px;
+    overflow: hidden;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+  .stat {
+    background: var(--surface);
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-label {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── SECTION TITLES ── */
+  .section-title {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── ROLES ── */
+  .roles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 72px;
+  }
+
+  .role-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    animation: fadeUp 0.6s ease both;
+  }
+  .role-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .role-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .role-card.viewer::before  { background: var(--info); }
+  .role-card.analyst::before { background: var(--warn); }
+  .role-card.admin::before   { background: var(--accent); }
+
+  .role-icon { font-size: 28px; margin-bottom: 16px; }
+  .role-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-transform: capitalize;
+  }
+  .role-card.viewer  .role-name { color: var(--info); }
+  .role-card.analyst .role-name { color: var(--warn); }
+  .role-card.admin   .role-name { color: var(--accent); }
+
+  .role-perms {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .role-perms li {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .role-perms li.yes { color: var(--text); }
+  .role-perms li.yes::before { content: '✓'; color: var(--accent); }
+  .role-perms li.no::before  { content: '✗'; color: var(--muted); }
+
+  /* ── ENDPOINTS ── */
+  .endpoint-groups { margin-bottom: 72px; }
+
+  .group { margin-bottom: 40px; }
+
+  .group-name {
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .endpoint {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    margin-bottom: 4px;
+    transition: border-color 0.15s, background 0.15s;
+    cursor: default;
+    animation: fadeUp 0.5s ease both;
+  }
+  .endpoint:hover { border-color: rgba(0,229,160,0.3); background: rgba(0,229,160,0.02); }
+
+  .method {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: 2px;
+    text-align: center;
+  }
+  .method.GET    { color: var(--method-get);    background: rgba(0,229,160,0.1);   border: 1px solid rgba(0,229,160,0.25); }
+  .method.POST   { color: var(--method-post);   background: rgba(77,166,255,0.1);  border: 1px solid rgba(77,166,255,0.25); }
+  .method.PATCH  { color: var(--method-patch);  background: rgba(255,179,64,0.1);  border: 1px solid rgba(255,179,64,0.25); }
+  .method.DELETE { color: var(--method-delete); background: rgba(255,82,99,0.1);   border: 1px solid rgba(255,82,99,0.25); }
+
+  .path {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .path .param { color: var(--warn); }
+
+  .ep-desc {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* ── QUICKSTART ── */
+  .quickstart { margin-bottom: 72px; }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .step-num {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+  .step h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .code-block {
+    background: #060a0e;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: #7ab4d4;
+    overflow-x: auto;
+    margin-top: 12px;
+    white-space: pre;
+  }
+  .code-block .kw  { color: var(--accent); }
+  .code-block .str { color: #f6c87a; }
+  .code-block .cmt { color: var(--muted); }
+  .code-block .url { color: var(--info); }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { color: var(--muted); text-decoration: none; transition: color 0.15s; }
+  .footer-links a:hover { color: var(--accent); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .roles { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .endpoint { grid-template-columns: 70px 1fr; }
+    .ep-desc { display: none; }
+    footer { flex-direction: column; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="badge">v1.0.0 &nbsp;·&nbsp; FastAPI &nbsp;·&nbsp; SQLite &nbsp;·&nbsp; JWT</div>
+    <h1>Finance<br/><span>Tracker</span> API</h1>
+    <p class="tagline">A clean, role-based finance backend for managing transactions, generating analytics, and powering financial dashboards.</p>
+    <div class="header-actions">
+      <a class="btn btn-primary" href="/docs">↗ Swagger UI</a>
+      <a class="btn btn-ghost" href="/redoc">ReDoc</a>
+      <a class="btn btn-ghost" href="/openapi.json">OpenAPI JSON</a>
+    </div>
+  </header>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="stat-num">18</div><div class="stat-label">Endpoints</div></div>
+    <div class="stat"><div class="stat-num">3</div><div class="stat-label">Roles</div></div>
+    <div class="stat"><div class="stat-num">4</div><div class="stat-label">Analytics Views</div></div>
+    <div class="stat"><div class="stat-num">2</div><div class="stat-label">Export Formats</div></div>
+  </div>
+
+  <!-- ROLES -->
+  <div class="section-title">Access Roles</div>
+  <div class="roles">
+    <div class="role-card viewer" style="animation-delay:0.1s">
+      <div class="role-icon">👁</div>
+      <div class="role-name">Viewer</div>
+      <ul class="role-perms">
+        <li class="yes">View all transactions</li>
+        <li class="yes">Financial summary</li>
+        <li class="no">Filter / search</li>
+        <li class="no">Analytics breakdown</li>
+        <li class="no">Create / edit records</li>
+      </ul>
+    </div>
+    <div class="role-card analyst" style="animation-delay:0.2s">
+      <div class="role-icon">📊</div>
+      <div class="role-name">Analyst</div>
+      <ul class="role-perms">
+        <li class="yes">View all transactions</li>
+        <li class="yes">Full filter support</li>
+        <li class="yes">Analytics + dashboard</li>
+        <li class="yes">CSV / JSON export</li>
+        <li class="no">Create / edit records</li>
+      </ul>
+    </div>
+    <div class="role-card admin" style="animation-delay:0.3s">
+      <div class="role-icon">⚙</div>
+      <div class="role-name">Admin</div>
+      <ul class="role-perms">
+        <li class="yes">All analyst permissions</li>
+        <li class="yes">Create transactions</li>
+        <li class="yes">Update &amp; delete records</li>
+        <li class="yes">User management</li>
+        <li class="yes">Role assignment</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ENDPOINTS -->
+  <div class="section-title">API Reference</div>
+  <div class="endpoint-groups">
+
+    <div class="group">
+      <div class="group-name">Authentication</div>
+      <div class="endpoint" style="animation-delay:0.05s">
+        <span class="method POST">POST</span>
+        <span class="path">/auth/register</span>
+        <span class="ep-desc">Register new user</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.08s">
+        <span class="method POST">POST</span>
+        <span class="path">/auth/login</span>
+        <span class="ep-desc">Get JWT token</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.11s">
+        <span class="method GET">GET</span>
+        <span class="path">/auth/me</span>
+        <span class="ep-desc">Current user profile</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-name">Transactions</div>
+      <div class="endpoint" style="animation-delay:0.14s">
+        <span class="method GET">GET</span>
+        <span class="path">/transactions/</span>
+        <span class="ep-desc">List + filter records</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.16s">
+        <span class="method POST">POST</span>
+        <span class="path">/transactions/</span>
+        <span class="ep-desc">Create record · admin</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.18s">
+        <span class="method GET">GET</span>
+        <span class="path">/transactions/<span class="param">{id}</span></span>
+        <span class="ep-desc">Get single record</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.20s">
+        <span class="method PATCH">PATCH</span>
+        <span class="path">/transactions/<span class="param">{id}</span></span>
+        <span class="ep-desc">Partial update · admin</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.22s">
+        <span class="method DELETE">DELETE</span>
+        <span class="path">/transactions/<span class="param">{id}</span></span>
+        <span class="ep-desc">Delete record · admin</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-name">Analytics</div>
+      <div class="endpoint" style="animation-delay:0.24s">
+        <span class="method GET">GET</span>
+        <span class="path">/analytics/summary</span>
+        <span class="ep-desc">Income / expense / balance</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.26s">
+        <span class="method GET">GET</span>
+        <span class="path">/analytics/categories</span>
+        <span class="ep-desc">Per-category breakdown · analyst+</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.28s">
+        <span class="method GET">GET</span>
+        <span class="path">/analytics/monthly</span>
+        <span class="ep-desc">Monthly net totals · analyst+</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.30s">
+        <span class="method GET">GET</span>
+        <span class="path">/analytics/dashboard</span>
+        <span class="ep-desc">Full dashboard · analyst+</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-name">Export</div>
+      <div class="endpoint" style="animation-delay:0.32s">
+        <span class="method GET">GET</span>
+        <span class="path">/export/csv</span>
+        <span class="ep-desc">Download as CSV · analyst+</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.34s">
+        <span class="method GET">GET</span>
+        <span class="path">/export/json</span>
+        <span class="ep-desc">Download as JSON · analyst+</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-name">Users (Admin Only)</div>
+      <div class="endpoint" style="animation-delay:0.36s">
+        <span class="method GET">GET</span>
+        <span class="path">/users/</span>
+        <span class="ep-desc">List all users</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.38s">
+        <span class="method GET">GET</span>
+        <span class="path">/users/<span class="param">{id}</span></span>
+        <span class="ep-desc">Get user by ID</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.40s">
+        <span class="method PATCH">PATCH</span>
+        <span class="path">/users/<span class="param">{id}</span>/role</span>
+        <span class="ep-desc">Update role</span>
+      </div>
+      <div class="endpoint" style="animation-delay:0.42s">
+        <span class="method DELETE">DELETE</span>
+        <span class="path">/users/<span class="param">{id}</span></span>
+        <span class="ep-desc">Delete user</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- QUICKSTART -->
+  <div class="section-title">Quick Start</div>
+  <div class="quickstart">
+    <div class="steps">
+      <div class="step" style="animation-delay:0.1s">
+        <div class="step-num">STEP 01</div>
+        <h3>Register &amp; Login</h3>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Create an account, then exchange credentials for a JWT token.</p>
+        <div class="code-block"><span class="kw">POST</span> <span class="url">/auth/register</span>
+{
+  <span class="str">"username"</span>: <span class="str">"alice"</span>,
+  <span class="str">"email"</span>: <span class="str">"alice@co.com"</span>,
+  <span class="str">"password"</span>: <span class="str">"secret123"</span>,
+  <span class="str">"role"</span>: <span class="str">"admin"</span>
+}
+
+<span class="kw">POST</span> <span class="url">/auth/login</span>
+→ <span class="str">"access_token"</span>: <span class="str">"eyJ..."</span></div>
+      </div>
+      <div class="step" style="animation-delay:0.2s">
+        <div class="step-num">STEP 02</div>
+        <h3>Manage Records</h3>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Use the Bearer token to create, view, and filter transactions.</p>
+        <div class="code-block"><span class="cmt">Authorization: Bearer &lt;token&gt;</span>
+
+<span class="kw">POST</span> <span class="url">/transactions/</span>
+{
+  <span class="str">"amount"</span>: 45000,
+  <span class="str">"type"</span>: <span class="str">"income"</span>,
+  <span class="str">"category"</span>: <span class="str">"Salary"</span>,
+  <span class="str">"date"</span>: <span class="str">"2025-04-01"</span>
+}</div>
+      </div>
+      <div class="step" style="animation-delay:0.3s">
+        <div class="step-num">STEP 03</div>
+        <h3>Get Analytics</h3>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Fetch summaries, breakdowns, and export your data.</p>
+        <div class="code-block"><span class="kw">GET</span> <span class="url">/analytics/dashboard</span>
+→ summary + categories
+  + monthly totals
+  + recent 10 transactions
+
+<span class="kw">GET</span> <span class="url">/export/csv?type=expense</span>
+→ transactions.csv</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <span>Finance Tracker API &nbsp;·&nbsp; Built with FastAPI + SQLAlchemy</span>
+    <div class="footer-links">
+      <a href="/docs">Swagger</a>
+      <a href="/redoc">ReDoc</a>
+      <a href="/openapi.json">Schema</a>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

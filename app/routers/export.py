@@ -1,5 +1,5 @@
 """
-Export endpoints — download all transactions as CSV or JSON.
+Export endpoints — download transactions as CSV or JSON.
 Accessible to analyst and admin roles.
 """
 
@@ -19,11 +19,11 @@ router = APIRouter(prefix="/export", tags=["Export"])
 
 
 def _filtered_transactions(
-    db:         Session,
-    tx_type:    Optional[TransactionType],
-    category:   Optional[str],
+    db: Session,
+    tx_type: Optional[TransactionType],
+    category: Optional[str],
     start_date: Optional[date],
-    end_date:   Optional[date],
+    end_date: Optional[date],
 ) -> list[Transaction]:
     query = db.query(Transaction)
     if tx_type:
@@ -38,52 +38,48 @@ def _filtered_transactions(
 
 
 _FILTER_PARAMS = {
-    "tx_type":    Query(None, alias="type"),
-    "category":   Query(None),
+    "tx_type": Query(None, alias="type"),
+    "category": Query(None),
     "start_date": Query(None),
-    "end_date":   Query(None),
+    "end_date": Query(None),
 }
 
 
 @router.get("/csv", summary="Export transactions as CSV")
 def export_csv(
-    tx_type:    Optional[TransactionType] = Query(None, alias="type"),
-    category:   Optional[str]            = Query(None),
-    start_date: Optional[date]           = Query(None),
-    end_date:   Optional[date]           = Query(None),
-    db:         Session                   = Depends(get_db),
-    _:          User                      = Depends(require_analyst_plus),
+    tx_type: Optional[TransactionType] = Query(None, alias="type"),
+    category: Optional[str] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_analyst_plus),
 ):
-    """
-    Download all matching transactions as a **CSV** file.
-    Supports the same filters as the transaction list endpoint.
-    **Analyst and Admin only.**
-    """
+    """ - Download all matching transactions as a CSV file
+    - Supports the same filters as the transaction list endpoint
+    - Analyst and Admin only"""
     transactions = _filtered_transactions(db, tx_type, category, start_date, end_date)
     return Response(
-        content     = to_csv(transactions),
-        media_type  = "text/csv",
-        headers     = {"Content-Disposition": "attachment; filename=transactions.csv"},
+        content = to_csv(transactions),
+        media_type = "text/csv",
+        headers = {"Content-Disposition": "attachment; filename=transactions.csv"},
     )
 
 
 @router.get("/json", summary="Export transactions as JSON")
 def export_json(
-    tx_type:    Optional[TransactionType] = Query(None, alias="type"),
-    category:   Optional[str]            = Query(None),
-    start_date: Optional[date]           = Query(None),
-    end_date:   Optional[date]           = Query(None),
-    db:         Session                   = Depends(get_db),
-    _:          User                      = Depends(require_analyst_plus),
+    tx_type: Optional[TransactionType] = Query(None, alias="type"),
+    category: Optional[str] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_analyst_plus),
 ):
-    """
-    Download all matching transactions as a **JSON** file.
-    Supports the same filters as the transaction list endpoint.
-    **Analyst and Admin only.**
-    """
+    """ - Download all matching transactions as a JSON file
+    - Supports the same filters as the transaction list endpoint
+    - Analyst and Admin only"""
     transactions = _filtered_transactions(db, tx_type, category, start_date, end_date)
     return Response(
-        content     = to_json(transactions),
-        media_type  = "application/json",
-        headers     = {"Content-Disposition": "attachment; filename=transactions.json"},
+        content = to_json(transactions),
+        media_type = "application/json",
+        headers = {"Content-Disposition": "attachment; filename=transactions.json"},
     )

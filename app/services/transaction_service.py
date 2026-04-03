@@ -9,22 +9,19 @@ from ..schemas import TransactionCreate, TransactionUpdate
 
 
 def create_transaction(db: Session, data: TransactionCreate, user_id: int) -> Transaction:
-    tx = Transaction(
-        amount=data.amount,
-        type=data.type,
-        category=data.category,
-        date=data.date,
-        notes=data.notes,
-        user_id=user_id,
-    )
+    tx = Transaction(**data.model_dump(), user_id=user_id)
     db.add(tx)
     db.commit()
     db.refresh(tx)
     return tx
 
 
-def get_transaction_by_id(db: Session, tx_id: int) -> Transaction:
-    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+def get_transaction_by_id(db: Session, tx_id: int, user: User) -> Transaction:
+    """Fetch a transaction, ensuring it belongs to the requesting user (admins see all)."""
+    query = db.query(Transaction).filter(Transaction.id == tx_id)
+    if user.role != UserRole.admin:
+        query = query.filter(Transaction.user_id == user.id)
+    tx = query.first()
     if not tx:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -34,20 +31,24 @@ def get_transaction_by_id(db: Session, tx_id: int) -> Transaction:
 
 
 def list_transactions(
-    db:         Session,
+    db:           Session,
     current_user: User,
-    tx_type:    Optional[TransactionType] = None,
-    category:   Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date:   Optional[date] = None,
-    skip:       int = 0,
-    limit:      int = 50,
+    tx_type:      Optional[TransactionType] = None,
+    category:     Optional[str] = None,
+    start_date:   Optional[date] = None,
+    end_date:     Optional[date] = None,
+    skip:         int = 0,
+    limit:        int = 50,
 ) -> list[Transaction]:
     """
-    Viewers and analysts see all records.
-    Filters are available to analyst and admin roles.
+    Each user sees only their own transactions.
+    Admins see all. Filters available to analyst+ roles.
     """
     query = db.query(Transaction)
+
+    # Scope to current user unless admin
+    if current_user.role != UserRole.admin:
+        query = query.filter(Transaction.user_id == current_user.id)
 
     if tx_type:
         query = query.filter(Transaction.type == tx_type)
@@ -67,9 +68,12 @@ def list_transactions(
     )
 
 
-def update_transaction(db: Session, tx_id: int, data: TransactionUpdate) -> Transaction:
-    tx = get_transaction_by_id(db, tx_id)
-    updates = data.model_dump(exclude_unset=True)
+def update_transaction(db: Session, tx_id: int, data: TransactionUpdate, user: User) -> Transaction:
+    tx = get_transaction_by_id(db, tx_id, user)           # reuses the 404 helper
+    # exclude_unset=True → skip fields absent from the request body entirely
+    # exclude_none=True  → skip fields explicitly sent as null, preventing
+    #                      NOT NULL constraint violations on non-nullable columns
+    updates = data.model_dump(exclude_unset=True, exclude_none=True)
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -82,8 +86,8 @@ def update_transaction(db: Session, tx_id: int, data: TransactionUpdate) -> Tran
     return tx
 
 
-def delete_transaction(db: Session, tx_id: int) -> dict:
-    tx = get_transaction_by_id(db, tx_id)
+def delete_transaction(db: Session, tx_id: int, user: User) -> dict:
+    tx = get_transaction_by_id(db, tx_id, user)
     db.delete(tx)
     db.commit()
     return {"detail": f"Transaction {tx_id} deleted successfully."}

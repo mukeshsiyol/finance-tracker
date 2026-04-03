@@ -3,24 +3,21 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import User, UserRole
+from .services.auth_service import SECRET_KEY, ALGORITHM
 
-# ── Config ─────────────────────────────────────────────────────────────────
-# Load from environment; fall back to dev-only defaults.
-# In production: set SECRET_KEY via environment variable or a secrets manager.
-SECRET_KEY  = os.getenv("SECRET_KEY", "change-me-in-production-use-env-var")
-ALGORITHM   = "HS256"
+# TOKEN_TTL_MINUTES is still read locally as it's dependencies-specific config
 TOKEN_TTL_MINUTES = int(os.getenv("TOKEN_TTL_MINUTES", "480"))
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+security = HTTPBearer()
 
 
-# ── Token helpers ──────────────────────────────────────────────────────────
+# Token helpers 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     payload = data.copy()
@@ -40,24 +37,31 @@ def decode_token(token: str) -> dict:
         )
 
 
-# ── Dependencies ────────────────────────────────────────────────────────────
+# Dependencies 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db:    Session = Depends(get_db),
 ) -> User:
+    token = credentials.credentials
     payload  = decode_token(token)
-    user_id: int = payload.get("sub")
-    if user_id is None:
+    if payload.get("type") == "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh tokens cannot be used for API access.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    username: str = payload.get("sub")
+    if username is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token payload invalid.")
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer exists.")
     return user
 
 
 def require_roles(*roles: UserRole):
-    """Factory that returns a dependency allowing only the specified roles."""
+    #Factory that returns a dependency allowing only specified roles.
     def _check(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
             raise HTTPException(

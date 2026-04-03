@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..dependencies import create_access_token, get_current_user
-from ..schemas import LoginRequest, RegisterRequest, TokenResponse, UserOut
-from ..services.auth_service import authenticate_user, register_user
+from ..core.security import get_current_user
+from ..models import User
+from ..schemas import LoginRequest, RegisterRequest, TokenResponse, AccessTokenResponse, UserOut, RefreshRequest
+from ..services.auth_service import authenticate_user, register_user, create_access_token, create_refresh_token, verify_refresh_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -17,10 +18,44 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
-    """Authenticate and receive a JWT bearer token."""
-    user  = authenticate_user(db, data.username, data.password)
-    token = create_access_token({"sub": user.id, "role": user.role})
-    return TokenResponse(access_token=token)
+    user = authenticate_user(db, data.username, data.password)
+
+    access_token = create_access_token({
+        "sub": user.username,
+        "role": user.role.value
+    })
+    refresh_token = create_refresh_token({
+        "sub": user.username,
+        "role": user.role.value
+    })
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+
+@router.post("/refresh", response_model=AccessTokenResponse)
+def refresh(data: RefreshRequest, db: Session = Depends(get_db)):
+    payload = verify_refresh_token(data.refresh_token)
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        
+    access_token = create_access_token({
+        "sub": user.username,
+        "role": user.role.value
+    })
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @router.get("/me", response_model=UserOut)

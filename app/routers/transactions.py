@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..dependencies import require_admin, require_analyst_plus, require_viewer_plus
+from ..core.security import require_role
+from ..dependencies import require_analyst_plus, require_viewer_plus
 from ..models import TransactionType, User, UserRole
 from ..schemas import TransactionCreate, TransactionOut, TransactionUpdate
 from ..services import transaction_service as svc
@@ -45,14 +46,14 @@ def get_transaction(
     _:     User    = Depends(require_viewer_plus),
 ):
     """Fetch a single transaction by ID."""
-    return svc.get_transaction_by_id(db, tx_id)
+    return svc.get_transaction_by_id(db, tx_id, _)
 
 
 @router.post("/", response_model=TransactionOut, status_code=201)
 def create_transaction(
     data:         TransactionCreate,
     db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_admin),
+    current_user: User    = Depends(require_role("admin")),
 ):
     """Create a new transaction. **Admin only.**"""
     return svc.create_transaction(db, data, current_user.id)
@@ -63,17 +64,17 @@ def update_transaction(
     tx_id: int,
     data:  TransactionUpdate,
     db:    Session = Depends(get_db),
-    _:     User    = Depends(require_admin),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Partially update a transaction. **Admin only.**"""
-    return svc.update_transaction(db, tx_id, data)
+    return svc.update_transaction(db, tx_id, data, current_user)
 
 
 @router.delete("/{tx_id}")
 def delete_transaction(
     tx_id: int,
     db:    Session = Depends(get_db),
-    _:     User    = Depends(require_admin),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Delete a transaction. **Admin only.**"""
-    return svc.delete_transaction(db, tx_id)
+    return svc.delete_transaction(db, tx_id, current_user)

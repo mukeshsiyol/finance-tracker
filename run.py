@@ -13,10 +13,10 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(description="Start the Finance Tracker API server")
-    parser.add_argument("--prod",   action="store_true", help="Run in production mode")
-    parser.add_argument("--host",   default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
-    parser.add_argument("--port",   default="8000",       help="Bind port (default: 8000)")
-    parser.add_argument("--workers",default="4",          help="Worker count for --prod (default: 4)")
+    parser.add_argument("--prod",    action="store_true", help="Run in production mode")
+    parser.add_argument("--host",    default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    parser.add_argument("--port",    default="8000",      help="Bind port (default: 8000)")
+    parser.add_argument("--workers", default="4",         help="Worker count for --prod (default: 4)")
     args = parser.parse_args()
 
     base_cmd = [
@@ -33,7 +33,13 @@ def main():
         cmd = base_cmd + ["--reload"]
         print(f"Starting in DEVELOPMENT mode on http://{args.host}:{args.port} (auto-reload enabled)")
 
-    subprocess.run(cmd)
+    try:
+        subprocess.run(cmd)
+    except KeyboardInterrupt:
+        # Ctrl+C is expected — uvicorn already handled its own shutdown.
+        # Suppress the traceback so the terminal stays clean.
+        print("\nServer stopped.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

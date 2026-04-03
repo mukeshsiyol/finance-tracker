@@ -1,10 +1,8 @@
 import bcrypt
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-
 from ..models import User, UserRole
 from ..schemas import RegisterRequest
-
 import os
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
@@ -12,7 +10,7 @@ from jose import jwt, JWTError
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
-REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+REFRESH_TOKEN_EXPIRE_MINUTES = 60*24*7
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -40,13 +38,11 @@ def verify_refresh_token(token: str):
 def hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain[:72].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-
 def verify_password(plain: str, hashed: str) -> bool:
     try:
         return bcrypt.checkpw(plain[:72].encode('utf-8'), hashed.encode('utf-8'))
     except ValueError:
         return False
-
 
 def register_user(db: Session, data: RegisterRequest) -> User:
     if db.query(User).filter(User.username == data.username).first():

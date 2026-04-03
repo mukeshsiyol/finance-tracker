@@ -1,12 +1,9 @@
 from datetime import date
 from typing import Optional
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-
 from ..models import Transaction, TransactionType, User, UserRole
 from ..schemas import TransactionCreate, TransactionUpdate
-
 
 def create_transaction(db: Session, data: TransactionCreate, user_id: int) -> Transaction:
     tx = Transaction(**data.model_dump(), user_id=user_id)
@@ -17,47 +14,42 @@ def create_transaction(db: Session, data: TransactionCreate, user_id: int) -> Tr
 
 
 def get_transaction_by_id(db: Session, tx_id: int, user: User) -> Transaction:
-    """Fetch a transaction, ensuring it belongs to the requesting user (admins see all)."""
-    query = db.query(Transaction).filter(Transaction.id == tx_id)
-    if user.role != UserRole.admin:
-        query = query.filter(Transaction.user_id == user.id)
-    tx = query.first()
+    """Fetch a transaction by ID. All authenticated users can view any transaction."""
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
     if not tx:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Transaction with id={tx_id} not found.",
         )
+
     return tx
 
 
 def list_transactions(
-    db:           Session,
+    db: Session,
     current_user: User,
-    tx_type:      Optional[TransactionType] = None,
-    category:     Optional[str] = None,
-    start_date:   Optional[date] = None,
-    end_date:     Optional[date] = None,
-    skip:         int = 0,
-    limit:        int = 50,
+    tx_type: Optional[TransactionType] = None,
+    category: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    skip: int = 0,
+    limit: int = 50,
 ) -> list[Transaction]:
     """
-    Each user sees only their own transactions.
-    Admins see all. Filters available to analyst+ roles.
+    List transactions with optional filters.
+    All transactions are system-wide.
+    Role-based access controls permissions (viewer, analyst, admin).
     """
     query = db.query(Transaction)
-
-    # Scope to current user unless admin
-    if current_user.role != UserRole.admin:
-        query = query.filter(Transaction.user_id == current_user.id)
-
     if tx_type:
         query = query.filter(Transaction.type == tx_type)
     if category:
+        # Case-insensitive partial match
         query = query.filter(Transaction.category.ilike(f"%{category}%"))
     if start_date:
-        query = query.filter(Transaction.date >= start_date)
+        query = query.filter(Transaction.date>=start_date)
     if end_date:
-        query = query.filter(Transaction.date <= end_date)
+        query = query.filter(Transaction.date<=end_date)
 
     return (
         query
@@ -69,10 +61,12 @@ def list_transactions(
 
 
 def update_transaction(db: Session, tx_id: int, data: TransactionUpdate, user: User) -> Transaction:
-    tx = get_transaction_by_id(db, tx_id, user)           # reuses the 404 helper
-    # exclude_unset=True → skip fields absent from the request body entirely
-    # exclude_none=True  → skip fields explicitly sent as null, preventing
-    #                      NOT NULL constraint violations on non-nullable columns
+    tx = get_transaction_by_id(db, tx_id, user)  # reuses the 404 helper
+    """
+    Update an existing transaction.
+    Only provided fields are updated.
+    Prevents overwriting fields with null values.
+    """
     updates = data.model_dump(exclude_unset=True, exclude_none=True)
     if not updates:
         raise HTTPException(
@@ -84,7 +78,6 @@ def update_transaction(db: Session, tx_id: int, data: TransactionUpdate, user: U
     db.commit()
     db.refresh(tx)
     return tx
-
 
 def delete_transaction(db: Session, tx_id: int, user: User) -> dict:
     tx = get_transaction_by_id(db, tx_id, user)

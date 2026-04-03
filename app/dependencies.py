@@ -5,8 +5,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
 
+from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User, UserRole
 from .services.auth_service import SECRET_KEY, ALGORITHM
@@ -14,7 +14,7 @@ from .services.auth_service import SECRET_KEY, ALGORITHM
 # TOKEN_TTL_MINUTES is still read locally as it's dependencies-specific config
 TOKEN_TTL_MINUTES = int(os.getenv("TOKEN_TTL_MINUTES", "480"))
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 # Token helpers 
@@ -43,6 +43,12 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db:    Session = Depends(get_db),
 ) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
     payload  = decode_token(token)
     if payload.get("type") == "refresh":
@@ -73,6 +79,6 @@ def require_roles(*roles: UserRole):
 
 
 # Convenience shortcuts
-require_viewer_plus  = require_roles(UserRole.viewer,  UserRole.analyst, UserRole.admin)
-require_analyst_plus = require_roles(UserRole.analyst, UserRole.admin)
-require_admin        = require_roles(UserRole.admin)
+require_viewer_plus = require_roles(UserRole.viewer,UserRole.analyst,UserRole.admin)
+require_analyst_plus = require_roles(UserRole.analyst,UserRole.admin)
+require_admin = require_roles(UserRole.admin)

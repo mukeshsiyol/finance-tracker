@@ -17,10 +17,8 @@ def create_transaction(db: Session, data: TransactionCreate, user_id: int) -> Tr
 
 
 def get_transaction_by_id(db: Session, tx_id: int, user: User) -> Transaction:
-    """Fetch a transaction, ensuring it belongs to the requesting user (admins see all)."""
+    """Fetch a transaction by ID. All authenticated users can view any transaction."""
     query = db.query(Transaction).filter(Transaction.id == tx_id)
-    if user.role != UserRole.admin:
-        query = query.filter(Transaction.user_id == user.id)
     tx = query.first()
     if not tx:
         raise HTTPException(
@@ -41,14 +39,10 @@ def list_transactions(
     limit:        int = 50,
 ) -> list[Transaction]:
     """
-    Each user sees only their own transactions.
-    Admins see all. Filters available to analyst+ roles.
+    All authenticated users can see all transactions.
+    Filters available to analyst+ roles.
     """
     query = db.query(Transaction)
-
-    # Scope to current user unless admin
-    if current_user.role != UserRole.admin:
-        query = query.filter(Transaction.user_id == current_user.id)
 
     if tx_type:
         query = query.filter(Transaction.type == tx_type)

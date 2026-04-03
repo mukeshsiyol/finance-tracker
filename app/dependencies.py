@@ -14,7 +14,7 @@ from .services.auth_service import SECRET_KEY, ALGORITHM
 # TOKEN_TTL_MINUTES is still read locally as it's dependencies-specific config
 TOKEN_TTL_MINUTES = int(os.getenv("TOKEN_TTL_MINUTES", "480"))
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 # Token helpers 
@@ -43,6 +43,12 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db:    Session = Depends(get_db),
 ) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
     payload  = decode_token(token)
     if payload.get("type") == "refresh":

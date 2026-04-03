@@ -20,15 +20,12 @@ def _round(value: float) -> float:
 
 
 def _base_query(db: Session, user: User):
-    """Returns a scoped query object — not yet executed."""
-    q = db.query(Transaction)
-    if user.role != UserRole.admin:
-        q = q.filter(Transaction.user_id == user.id)
-    return q
+    """Returns a query object for all transactions — not yet executed."""
+    return db.query(Transaction)
 
 
 def _user_transactions(db: Session, user: User) -> list[Transaction]:
-    """Return all transactions scoped to user (admins see all)."""
+    """Return all transactions visible to the user."""
     return _base_query(db, user).all()
 
 
@@ -101,18 +98,6 @@ def get_monthly_totals(db: Session, user: User) -> list[MonthlyTotal]:
         )
         for (year, month), data in sorted(monthly.items(), reverse=True)
     ]
-
-def _base_query(db: Session, user: User):
-    """Returns a scoped query object — not yet executed."""
-    q = db.query(Transaction)
-    if user.role != UserRole.admin:
-        q = q.filter(Transaction.user_id == user.id)
-    return q
-
-
-def _user_transactions(db: Session, user: User) -> list[Transaction]:
-    return _base_query(db, user).all()
-
 
 def get_dashboard(db: Session, user: User) -> AnalyticsDashboard:
     recent = (

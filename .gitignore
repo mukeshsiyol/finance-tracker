@@ -43,3 +43,7 @@ htmlcov/
 # Distribution
 *.tar.gz
 *.zip
+
+# Pytest
+pytest_*.txt
+test_*.txt

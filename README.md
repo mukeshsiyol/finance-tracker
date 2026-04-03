@@ -4,6 +4,15 @@ A Python-based finance tracking backend built with **FastAPI**, **SQLAlchemy**, 
 
 ---
 
+## Features
+
+- 🔐 JWT Authentication (Access + Refresh tokens)
+- 👥 Role-based access control (Viewer, Analyst, Admin)
+- 💰 Transaction management (CRUD + filters + pagination)
+- 📊 Analytics (summary, category breakdown, monthly trends)
+- 📁 Export data (CSV & JSON)
+- 🧪 Automated testing with pytest
+
 ## Tech Stack
 
 | Layer        | Choice              | Reason                                          |
@@ -48,7 +57,7 @@ finance_tracker/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/finance-tracker.git
+git clone https://github.com/mukeshsiyol/finance-tracker.git
 cd finance-tracker
 ```
 
@@ -77,13 +86,13 @@ cp .env.example .env
 # Defaults work for local dev — no changes needed to get started
 ```
 
-| Variable            | Default                            | Description                              |
-|---------------------|------------------------------------|------------------------------------------|
-| `SECRET_KEY`        | *(insecure dev default)*           | JWT signing key — **change in production** |
-| `TOKEN_TTL_MINUTES` | `480`                              | Token expiry in minutes (8 hours)        |
-| `DATABASE_URL`      | `sqlite:///./finance_tracker.db`   | Any SQLAlchemy-compatible connection URL |
+| Variable              | Default                            | Description                                      |
+|-----------------------|------------------------------------|--------------------------------------------------|
+| `SECRET_KEY`          | *(auto-generated in development)*  | Secret key used to sign JWT tokens (**set in production**) |
+| `TOKEN_TTL_MINUTES`   | `60`                               | Access token expiry time (in minutes)            |
+| `DATABASE_URL`        | `sqlite:///./finance_tracker.db`   | Database connection string (any SQLAlchemy URL)  |
 
-### 5. (Optional) Seed demo data
+### 5. Seed demo data
 
 ```bash
 python seed.py
@@ -293,13 +302,13 @@ curl "http://localhost:8000/export/json?type=expense&start_date=2025-01-01" \
 
 ## Assumptions Made
 
-1. **All transactions are system-wide** — records are not scoped per user. Any authenticated user can view all records. The `user_id` on a transaction records *who created it*, not whose transaction it is. This suits a finance dashboard managing a single entity's books.
+1. **Transactions are user-scoped** — each user can access only their own records, while admins can view all data.
 
 2. **Roles are assigned at registration** — in production this would be admin-only. For this assignment, the role can optionally be passed in the register payload.
 
 3. **SQLite is used for persistence** — easy to run locally without any DB server setup. Switching to PostgreSQL requires only changing the `SQLALCHEMY_DATABASE_URL` in `database.py`.
 
-4. **JWT secret key is hardcoded** — in a real deployment this would be loaded from an environment variable or secrets manager.
+4. **JWT secret key** — is loaded from environment variables (with a fallback for development).
 
 5. **Filtering is restricted to analyst+ roles** — viewers can see all data but cannot narrow results. This mirrors a dashboard where standard users see curated summary views.
 

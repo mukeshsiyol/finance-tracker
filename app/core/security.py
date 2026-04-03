@@ -1,18 +1,25 @@
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
+from sqlalchemy.orm import Session
 
 from app.models import User
-from app.database import SessionLocal
+from app.database import get_db
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def get_current_user_token(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
 
     try:
@@ -30,8 +37,8 @@ def get_current_user_token(
 
 def get_current_user(
     payload=Depends(get_current_user_token),
+    db: Session = Depends(get_db),
 ):
-    db = SessionLocal()
     user = db.query(User).filter(User.username == payload["sub"]).first()
 
     if not user:
